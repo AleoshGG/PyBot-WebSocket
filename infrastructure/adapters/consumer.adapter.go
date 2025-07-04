@@ -19,7 +19,6 @@ func NewRabbitMQ() *RabbitMQ {
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a channel")
 
-
 	return &RabbitMQ{conn: conn, ch: ch}  
 }
 
@@ -65,11 +64,15 @@ func (r *RabbitMQ) ConsumeQueue(ex models.Exchange, q models.Queue, qb models.Qu
     )
     failOnError(err, "Failed to register a consumer")
 
+    // Conectarse al cliente ws
+    ws := NewGorillaClient(q.Name, "Cliente1")
+
     var forever chan struct{}
 
     go func() {
         for d := range msgs {
             log.Printf(" [x] %s", d.Body)
+            ws.SendData(d.Body)
         }
     }()
 
