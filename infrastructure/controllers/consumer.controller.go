@@ -1,4 +1,4 @@
-package infrastructure
+package controllers
 
 import (
 	"PyBot-WebSocket/application/services"
@@ -6,14 +6,14 @@ import (
 	"PyBot-WebSocket/infrastructure/adapters"
 )
 
-type SendData struct {
+type ConsumerController struct {
 	scamqp 		*services.ConsumerAMQP
 	exchange 	models.Exchange
 	queue    	models.Queue
 	queueBind 	models.QueueBind
 }
 
-func NewSendData() *SendData {
+func NewConsumerController(name, key string) *ConsumerController {
 	rabbit := adapters.NewRabbitMQ()
 	scamqp := services.NewConsumerAMQP(rabbit)
 	
@@ -24,20 +24,20 @@ func NewSendData() *SendData {
 	}
 
 	q := models.Queue {
-		Name: "sensor_HX",
+		Name: name,
 		Durable: true,
 	}
 
 	qb := models.QueueBind {
-		Name: "sensor_HX",
-		RoutingKey: "hx",
+		Name: name,
+		RoutingKey: key,
 		Exchange: "amq.topic",
 	}
 
-	return &SendData{scamqp: scamqp, exchange: ex, queue: q, queueBind: qb}
+	return &ConsumerController{scamqp: scamqp, exchange: ex, queue: q, queueBind: qb}
 } 
 
 
-func (sd *SendData) Run() {
-	sd.scamqp.Run(sd.exchange, sd.queue, sd.queueBind)
+func (cC *ConsumerController) Run() {
+	cC.scamqp.Run(cC.exchange, cC.queue, cC.queueBind)
 }
