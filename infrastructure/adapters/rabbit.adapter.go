@@ -6,21 +6,6 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-// SensorConfig reúne parámetros de exchange, queue y bind
-type SensorConfig struct {
-	Exchange string
-	Queue    string
-	RoutingKey string
-}
-
-// SensorConfigs devuelve configuración de las 3 colas
-func SensorConfigs() []SensorConfig {
-	return []SensorConfig{
-		{Exchange: "amq.topic", Queue: "sensor_HX", RoutingKey: "hx"},
-		{Exchange: "amq.topic", Queue: "sensor_NEO", RoutingKey: "neo"},
-	}
-}
-
 // RabbitMQ encapsula conexión y canal
 type RabbitMQ struct {
 	conn *amqp.Connection

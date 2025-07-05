@@ -1,7 +1,6 @@
 package models
 
 import (
-	"log"
 
 	"github.com/gorilla/websocket"
 )
@@ -44,7 +43,6 @@ func (h *Hub) run() {
 
 func (h* Hub) Register(sensor, prototype_id string, conn *websocket.Conn) {
 	h.register <- Registration{Sensor: sensor, Prototype_id: prototype_id, Conn: conn}
-	log.Printf("Registos: %s", h.register)
 }
 
 func (h *Hub) Send(msg SensorMessage) {

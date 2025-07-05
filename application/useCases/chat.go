@@ -18,7 +18,7 @@ func NewChatUseCase(rmq *adapters.RabbitMQ, wsServer *adapters.WebSocketServer) 
 	return &ChatUseCase{rmq: rmq, hub: wsServer.GetHub()}
 }
 
-func (uc *ChatUseCase) ConsumeSensor(ctx context.Context, cfg adapters.SensorConfig) {
+func (uc *ChatUseCase) ConsumeSensor(ctx context.Context, cfg models.SensorConfig) {
 	msgs, err := uc.rmq.Consume(cfg.Exchange, cfg.Queue, cfg.RoutingKey)
 	if err != nil {
 		panic(err)

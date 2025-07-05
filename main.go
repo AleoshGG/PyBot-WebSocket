@@ -2,6 +2,7 @@ package main
 
 import (
 	usecases "PyBot-WebSocket/application/useCases"
+	"PyBot-WebSocket/domain/models"
 	"PyBot-WebSocket/infrastructure/adapters"
 	"context"
 	"fmt"
@@ -28,7 +29,7 @@ func main() {
 	chatUC := usecases.NewChatUseCase(rabbit, wsServer)
 
 	// 3) Iniciar escucha de colas
-	for _, cfg := range adapters.SensorConfigs() {
+	for _, cfg := range models.SensorConfigs() {
 		go chatUC.ConsumeSensor(ctx, cfg)
 	}
 
