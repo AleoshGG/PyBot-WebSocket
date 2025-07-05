@@ -2,7 +2,7 @@ package usecases
 
 import (
 	"PyBot-WebSocket/domain/models"
-	"PyBot-WebSocket/infrastructure/adapters"
+	"PyBot-WebSocket/domain/repositories"
 	"context"
 	"encoding/json"
 	"log"
@@ -10,11 +10,11 @@ import (
 
 // ChatUseCase coordina RabbitMQ y WebSocket
 type ChatUseCase struct {
-	rmq *adapters.RabbitMQ
+	rmq repositories.ConsumerAMQP
 	hub *models.Hub
 }
 
-func NewChatUseCase(rmq *adapters.RabbitMQ, wsServer *adapters.WebSocketServer) *ChatUseCase {
+func NewChatUseCase(rmq repositories.ConsumerAMQP, wsServer repositories.WebSocketServer) *ChatUseCase {
 	return &ChatUseCase{rmq: rmq, hub: wsServer.GetHub()}
 }
 

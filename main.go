@@ -23,7 +23,7 @@ func main() {
 
 	// 1) Inicializar adaptadores
 	rabbit := adapters.NewRabbitMQ()
-	wsServer := adapters.NewWebSocketServer()
+	wsServer := adapters.NewGorilla()
 
 	// 2) Inicializar caso de uso
 	chatUC := usecases.NewChatUseCase(rabbit, wsServer)

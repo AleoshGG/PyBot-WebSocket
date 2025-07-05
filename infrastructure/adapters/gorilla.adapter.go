@@ -8,25 +8,26 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-type WebSocketServer struct {
+type Gorilla struct {
 	hub *models.Hub
 	upgrader websocket.Upgrader
 }
 
-func NewWebSocketServer() *WebSocketServer {
-	return &WebSocketServer{
+func NewGorilla() *Gorilla {
+	return &Gorilla{
 		hub: models.NewHub(),
 		upgrader: websocket.Upgrader{CheckOrigin: func(r *http.Request) bool {return true}},
 	}
 }
 
 // Listener and Serve
-func (s *WebSocketServer) ListenAndServe(addr string) error {
-	http.HandleFunc("/ws/hx", s.handleWS("sensor_HX"))
-	http.HandleFunc("/ws/neo", s.handleWS("sensor_NEO"))
+func (s *Gorilla) ListenAndServe(addr string) error {
+	http.HandleFunc("/ws/hx", s.HandleWS("sensor_HX"))
+	http.HandleFunc("/ws/neo", s.HandleWS("sensor_NEO"))
 	return http.ListenAndServe(addr, nil)
 }
-func (s *WebSocketServer) handleWS(sensor string) http.HandlerFunc {
+
+func (s *Gorilla) HandleWS(sensor string) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		params := r.URL.Query()
 		p_id := params.Get("prototype_id")
@@ -45,6 +46,6 @@ func (s *WebSocketServer) handleWS(sensor string) http.HandlerFunc {
 	}
 }
 
-func (s *WebSocketServer) GetHub() *models.Hub {
+func (s *Gorilla) GetHub() *models.Hub {
 	return s.hub
 }
