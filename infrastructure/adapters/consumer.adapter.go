@@ -2,6 +2,9 @@ package adapters
 
 import (
 	"PyBot-WebSocket/domain/models"
+	"context"
+	"encoding/json"
+	"errors"
 	"log"
 	"os"
 
@@ -64,22 +67,61 @@ func (r *RabbitMQ) ConsumeQueue(ex models.Exchange, q models.Queue, qb models.Qu
     )
     failOnError(err, "Failed to register a consumer")
 
-    // Conectarse al cliente ws
-    ws := NewGorillaClient(q.Name, "Cliente1")
+    ctx, cancel := context.WithCancel(context.Background())
+    defer cancel()
 
-    var forever chan struct{}
-
-    go func() {
-        for d := range msgs {
-            log.Printf(" [x] %s", d.Body)
-            ws.SendData(d.Body)
-        }
-    }()
-
-    log.Printf(" [*] Waiting for logs. To exit press CTRL+C")
-    <-forever
+    if err := processData(msgs, ctx, q.Name); err != nil {
+        log.Printf("Error: %s", err)
+    }
 }
 
+func processData(msgs <-chan amqp.Delivery, ctx context.Context, qname string) error {
+    wsClients := make(map[string]*GorillaClient)
+
+    for {
+        select {
+            case <- ctx.Done():
+                for _, client := range wsClients {
+                    client.Close()
+                }
+                return ctx.Err()
+
+            case d, ok := <- msgs:
+                if !ok {
+                    return errors.New("Message channel closes")
+                }
+
+                var prototype_id string
+                switch qname {
+                case "sensor_HX":
+                    var data models.HX711
+                    if err := json.Unmarshal(d.Body, &data); err != nil {
+                        log.Printf("Error parsing sensor_HX data: %s", err)
+                        continue
+                    }
+                    prototype_id = data.Prototype_id
+                case "sensor_NEO":
+                    var data models.GPS
+                    if err := json.Unmarshal(d.Body, &data); err != nil {
+                        log.Printf("Error parsing sensor_NEO data: %s", err)
+                        continue
+                    }
+                    prototype_id = data.Prototype_id
+                default: 
+                    log.Printf("No handler for queue %s: %s", qname, d.Body)
+                    continue
+                }
+                
+                client, exists := wsClients[prototype_id]
+                if !exists {
+                    client = NewGorillaClient(qname, prototype_id)
+                    wsClients[prototype_id] = client
+                }
+
+                client.SendData(d.Body)
+        }   
+    }
+}
 
 func failOnError(err error, msg string) {
 	if err != nil {
