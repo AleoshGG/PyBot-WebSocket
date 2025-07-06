@@ -24,6 +24,7 @@ func NewGorilla() *Gorilla {
 func (s *Gorilla) ListenAndServe(addr string) error {
 	http.HandleFunc("/ws/hx", s.HandleWS("sensor_HX"))
 	http.HandleFunc("/ws/neo", s.HandleWS("sensor_NEO"))
+	http.HandleFunc("/ws/cam", s.HandleWS("sensor_CAM"))
 	return http.ListenAndServe(addr, nil)
 }
 

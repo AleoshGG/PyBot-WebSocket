@@ -12,5 +12,6 @@ func SensorConfigs() []SensorConfig {
 	return []SensorConfig{
 		{Exchange: "amq.topic", Queue: "sensor_HX", RoutingKey: "hx"},
 		{Exchange: "amq.topic", Queue: "sensor_NEO", RoutingKey: "neo"},
+		{Exchange: "amq.topic", Queue: "sensor_CAM", RoutingKey: "cam"},
 	}
 }

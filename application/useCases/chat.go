@@ -35,20 +35,20 @@ func (uc *ChatUseCase) ConsumeSensor(ctx context.Context, cfg models.SensorConfi
 				var data models.HX711
 				json.Unmarshal(d.Body, &data)
 				pid = data.Prototype_id
-				log.Printf("Data [hx]: %s", d.Body)
+				log.Printf("Data [hx]: %s", data)
 			case "sensor_NEO":
 				var data models.GPS
 				json.Unmarshal(d.Body, &data)
 				pid = data.Prototype_id
-				log.Printf("Data [neo]: %s", d.Body)
-			case "sensor_ABC":
-				// ...
+				log.Printf("Data [neo]: %s", data)
+			case "sensor_CAM":
+				var data models.CAM
+				json.Unmarshal(d.Body, &data)
+				pid = data.Prototype_id
+				log.Printf("Data [cam]: %s", data)
 			default: log.Printf("Data: %s", d.Body)
 			}
-			log.Printf("ID: %s", pid)
-			log.Printf("queue: %s", cfg.Queue)
-			log.Printf("body: %s", d.Body)
 			uc.hub.Send(models.SensorMessage{Sensor: cfg.Queue, Prototype_id: pid, Payload: d.Body})
 		}
-		}
+	}
 }
