@@ -7,11 +7,13 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 )
 
 func main() {
@@ -34,11 +36,30 @@ func main() {
 	}
 
 	// 4) Iniciar servidor WebSocket
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws/hx",  wsServer.HandleWS("sensor_HX"))
+	mux.HandleFunc("/ws/neo", wsServer.HandleWS("sensor_NEO"))
+	mux.HandleFunc("/ws/cam", wsServer.HandleWS("sensor_CAM"))
+
+	// Configuración de CORS
+    c := cors.New(cors.Options{
+        AllowedOrigins:   adapters.AllowedOrigins,
+        AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+        AllowedHeaders:   []string{"Content-Type", "Authorization"},
+        AllowCredentials: true,
+        // MaxAge: 600, // opcional: cachear preflight en segundos
+    })
+
+	server := &http.Server{
+		Addr: ":8080",
+		Handler: c.Handler(mux),
+	}
+
 	go func() {
 		fmt.Println("WebSocket running on :8080")
-		if err := wsServer.ListenAndServe(":8080"); err != nil {
-			log.Fatalf("WS server error: %v", err)
-		}
+        if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            log.Fatalf("WS server error: %v", err)
+        }
 	}()
 
 	// 5) Esperar señal de parada

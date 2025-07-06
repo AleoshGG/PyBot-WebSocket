@@ -6,7 +6,7 @@ import (
 )
 
 type WebSocketServer interface {
-	ListenAndServe(addr string) error
+	// ListenAndServe(addr string) error
 	HandleWS(sensor string) http.HandlerFunc
 	GetHub() *models.Hub
 }
