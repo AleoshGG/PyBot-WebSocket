@@ -45,7 +45,7 @@ func (uc *ChatUseCase) ConsumeSensor(ctx context.Context, cfg models.SensorConfi
 				var data models.CAM
 				json.Unmarshal(d.Body, &data)
 				pid = data.Prototype_id
-				log.Printf("Data [cam]: %s", data)
+				log.Printf("Data [cam]: %s", data.Detections)
 			default: log.Printf("Data: %s", d.Body)
 			}
 			uc.hub.Send(models.SensorMessage{Sensor: cfg.Queue, Prototype_id: pid, Payload: d.Body})
