@@ -1,33 +1,54 @@
 package usecases
 
-import "PyBot-WebSocket/domain/models"
+import (
+	"PyBot-WebSocket/domain/models"
+	"PyBot-WebSocket/domain/repositories"
+	"context"
+	"encoding/json"
+	"log"
+)
 
-type Chat struct {
-	Rooms map[string]*models.Room
+// ChatUseCase coordina RabbitMQ y WebSocket
+type ChatUseCase struct {
+	rmq repositories.ConsumerAMQP
+	hub *models.Hub
 }
 
-func NewChat() *Chat {
-	return &Chat{Rooms: map[string]*models.Room{}}
+func NewChatUseCase(rmq repositories.ConsumerAMQP, wsServer repositories.WebSocketServer) *ChatUseCase {
+	return &ChatUseCase{rmq: rmq, hub: wsServer.GetHub()}
 }
 
-func (c *Chat) JoinRoom(roomID, clientID string) *models.Client {
-	room, exists := c.Rooms[roomID]
-	if !exists {
-		room = models.NewRoom(roomID)
-		c.Rooms[roomID] = room
+func (uc *ChatUseCase) ConsumeSensor(ctx context.Context, cfg models.SensorConfig) {
+	msgs, err := uc.rmq.Consume(cfg.Exchange, cfg.Queue, cfg.RoutingKey)
+	if err != nil {
+		panic(err)
 	}
-
-	client := &models.Client{
-		ID: clientID,
-		Send: make(chan []byte),
-	}
-
-	room.AddClient(client)
-	return client
-}
-
-func (c *Chat) SendMessage(roomID string, msg []byte) {
-	if room, ok := c.Rooms[roomID]; ok {
-		room.Broadcast(msg)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case d := <-msgs:
+			// Extraer prototype_id
+			var pid string
+			switch cfg.Queue {
+			case "sensor_HX":
+				var data models.HX711
+				json.Unmarshal(d.Body, &data)
+				pid = data.Prototype_id
+				log.Printf("Data [hx]: %s", data)
+			case "sensor_NEO":
+				var data models.GPS
+				json.Unmarshal(d.Body, &data)
+				pid = data.Prototype_id
+				log.Printf("Data [neo]: %s", data)
+			case "sensor_CAM":
+				var data models.CAM
+				json.Unmarshal(d.Body, &data)
+				pid = data.Prototype_id
+				log.Printf("Data [cam]: %s", data.Detections)
+			default: log.Printf("Data: %s", d.Body)
+			}
+			uc.hub.Send(models.SensorMessage{Sensor: cfg.Queue, Prototype_id: pid, Payload: d.Body})
+		}
 	}
 }

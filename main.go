@@ -2,67 +2,71 @@ package main
 
 import (
 	usecases "PyBot-WebSocket/application/useCases"
-	"PyBot-WebSocket/infrastructure"
-	"PyBot-WebSocket/infrastructure/controllers"
+	"PyBot-WebSocket/domain/models"
+	"PyBot-WebSocket/infrastructure/adapters"
 	"context"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
-	"time"
+	"syscall"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/cors"
 )
 
 func main() {
 	godotenv.Load()
 
-	// Canal para capturar errores del servidor HTTP
-	serverErrors := make(chan error, 1)
+	// Context para control de cancelación
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	// Levantaar el servidor ws en un goroutine
+	// 1) Inicializar adaptadores
+	rabbit := adapters.NewRabbitMQ()
+	wsServer := adapters.NewGorilla()
+
+	// 2) Inicializar caso de uso
+	chatUC := usecases.NewChatUseCase(rabbit, wsServer)
+
+	// 3) Iniciar escucha de colas
+	for _, cfg := range models.SensorConfigs() {
+		go chatUC.ConsumeSensor(ctx, cfg)
+	}
+
+	// 4) Iniciar servidor WebSocket
+	mux := http.NewServeMux()
+	mux.HandleFunc("/ws/hx",  wsServer.HandleWS("sensor_HX"))
+	mux.HandleFunc("/ws/neo", wsServer.HandleWS("sensor_NEO"))
+	mux.HandleFunc("/ws/cam", wsServer.HandleWS("sensor_CAM"))
+
+	// Configuración de CORS
+    c := cors.New(cors.Options{
+        AllowedOrigins:   adapters.AllowedOrigins,
+        AllowedMethods:   []string{"GET", "POST", "OPTIONS"},
+        AllowedHeaders:   []string{"Content-Type", "Authorization"},
+        AllowCredentials: true,
+        // MaxAge: 600, // opcional: cachear preflight en segundos
+    })
+
+	server := &http.Server{
+		Addr: ":8080",
+		Handler: c.Handler(mux),
+	}
+
 	go func() {
-		chatService := usecases.NewChat()
-		wsHandler := controllers.NewWebSocketController(chatService)
-
-		mux := http.NewServeMux()
-        mux.HandleFunc("/ws", wsHandler.HandleWS)
-
-        server := &http.Server{
-            Addr:    ":8080",
-            Handler: mux,
+		fmt.Println("WebSocket running on :8080")
+        if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+            log.Fatalf("WS server error: %v", err)
         }
+	}()
 
-        fmt.Println("Servidor WebSocket corriendo en :8080")
-
-		// Envia al canal si ListenAndServe falla
-        serverErrors <- server.ListenAndServe()
-	} ()
-
-	// Correr consumidores
-	consumers := infrastructure.NewLoadConsumers()
-	consumers.Run()
-	
-	// Captura de señal para graceful shutdown
-    stop := make(chan os.Signal, 1)
-    signal.Notify(stop, os.Interrupt)
-
-    // Bloquea esperando o bien un error de servidor, o Ctrl+C
-    select {
-    case err := <-serverErrors:
-        log.Fatalf("El servidor WS terminó con error: %v", err)
-    case <-stop:
-        log.Println("Recibida señal de parada, apagando...")
-
-        // Aquí podrías hacer shutdown controlado de tu WS server si lo almacenaste
-        // en una variable accesible, o notificar a los consumidores que detengan.
-        // Ejemplo de shutdown en el mismo código:
-        _, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-        defer cancel()
-        // server.Shutdown(ctx)  // si guardaste `server` en un scope externo
-    }
-
-    log.Println("Aplicación finalizada.")
+	// 5) Esperar señal de parada
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	<-stop
+	log.Println("Shutting down...")
+	cancel()
 	
 }
